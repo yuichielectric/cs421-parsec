@@ -71,6 +71,9 @@ string :: String -> Parser ()
 string "" = return ()
 string (c:cs) = do {char c; string cs}
 
+many :: Parser a -> Parser [a]
+many p = many1 p <|> return []
+
 many1 :: Parser a -> Parser [a]
 many1 p = do {a <- p; as <- (many1 p <|> return []); return (a:as)}
 
@@ -80,6 +83,12 @@ letter = sat isAlpha
 digit :: Parser Char
 digit = sat isDigit
 
+whiteSpace :: Parser ()
+whiteSpace = do {Parsing.many (char ' '); return ()}
+
+letExpr :: Parser String
+letExpr = do {identifier; whiteSpace; char '='; whiteSpace; expr}
+
 identifier = many1 (letter <|> digit <|> char '_')
 
 
@@ -87,3 +96,5 @@ try :: Parser a -> Parser a
 try p = Parser (\input -> case parse p input of
                     Consumed Error -> Empty Error
                     other          -> other)
+
+expr = do {string "let"; whiteSpace; letExpr } <|> identifier
