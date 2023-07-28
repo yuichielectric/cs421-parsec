@@ -37,12 +37,12 @@ instance Monad Parser where
     (>>=) :: Parser a -> (a -> Parser b) -> Parser b
     p >>= f = Parser (\state -> case parse p state of
                             Empty reply1
-                                -> case (reply1) of
+                                -> case reply1 of
                                     Ok x state' msg -> parse (f x) state'
                                     Error msg       -> Empty (Error msg)
                             Consumed reply1
                                 -> Consumed
-                                    (case (reply1) of
+                                    (case reply1 of
                                         Ok x state' msg
                                             -> case parse (f x) state' of
                                                 Consumed (Ok b state'' msg') -> Ok b state'' (merge msg msg')
@@ -73,7 +73,7 @@ instance MonadPlus Parser where
 
 mergeOk x inp msg1 msg2 = Empty (Ok x inp (merge msg1 msg2))
 mergeError msg1 msg2 = Empty (Error (merge msg1 msg2))
-merge (Message pos inp exp1) (Message _ _ exp2) = Message pos inp (exp1 ++ exp2)
+merge (Message pos inp exp1) (Message newPos newInp exp2) = Message newPos newInp (exp1 ++ exp2)
 
 -- Apply parser
 parse :: Parser a -> State -> Consumed a
@@ -94,12 +94,12 @@ sat :: (Char -> Bool) -> Parser Char
 sat test = Parser (\(State input pos) ->
     case input of
         "" -> Empty (Error (Message pos "end of input" []))
-        (c:cs) -> if test c
-                    then
-                        let newPos = nextPos c pos
-                            newState = State cs newPos
-                        in seq newPos (Consumed (Ok c newState (Message pos [] [])))
-                    else Empty (Error (Message pos [] ["unexpected " ++ [c]])))
+        (c:cs) ->
+            let newPos = nextPos c pos
+                newState = State cs newPos
+            in if test c
+                then seq newPos (Consumed (Ok c newState (Message pos [] [])))
+                else Empty (Error (Message newPos [] ["unexpected " ++ [c]])))
 
 -- sat :: (Char -> Bool) -> Parser Char
 -- sat test = Parser (\(State input pos) ->
