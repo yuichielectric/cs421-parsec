@@ -1,11 +1,9 @@
-module Parsing where
+module MyParsec where
 
 import Data.Char
 import Data.List (intercalate)
 import Control.Monad
 import Control.Applicative (Alternative(..))
-
-
 
 newtype Parser a = Parser (State -> Consumed a)
 
@@ -38,13 +36,11 @@ instance Functor Parser where
     fmap = liftM
 
 instance Applicative Parser where
-    pure :: a -> Parser a
     pure a = Parser (\state ->
                         Empty (Ok a state (Message (pos state) [] [])))
     (<*>) = ap
 
 instance Monad Parser where
-    (>>=) :: Parser a -> (a -> Parser b) -> Parser b
     p >>= f = Parser (\state -> case parse p state of
                             Empty reply1
                                 -> case reply1 of
@@ -117,6 +113,19 @@ nextPos :: Char -> Pos -> Pos
 nextPos '\n' (Pos l _) = Pos (l + 1) 0
 nextPos _ (Pos l c) = Pos l (c + 1)
 
+
+
+many :: Parser a -> Parser [a]
+many p = many1 p <|> return []
+
+many1 :: Parser a -> Parser [a]
+many1 p = do {a <- p; as <- (many1 p <|> return []); return (a:as)}
+
+try :: Parser a -> Parser a
+try p = Parser (\input -> case parse p input of
+                    Consumed (Error msg) -> Empty (Error msg)
+                    other          -> other)
+
 -----------------------
 -- Primitive parsers --
 -----------------------
@@ -128,12 +137,6 @@ string :: String -> Parser ()
 string "" = return ()
 string (c:cs) = do {char c; string cs}
 
-many :: Parser a -> Parser [a]
-many p = many1 p <|> return []
-
-many1 :: Parser a -> Parser [a]
-many1 p = do {a <- p; as <- (many1 p <|> return []); return (a:as)}
-
 letter :: Parser Char
 letter = sat isAlpha <?> "letter"
 
@@ -141,7 +144,7 @@ digit :: Parser Char
 digit = (sat isDigit) <?> "digit"
 
 whiteSpace :: Parser ()
-whiteSpace = do {Parsing.many (char ' '); return ()}
+whiteSpace = do {MyParsec.many (char ' '); return ()}
 
 whiteSpace1 :: Parser ()
 whiteSpace1 = do {many1 (char ' '); return ()}
@@ -152,12 +155,12 @@ letExpr = do {identifier; whiteSpace; char '='; whiteSpace; expr}
 identifier :: Parser String
 identifier = many1 (letter <|> digit <|> char '_') <?> "identifier"
 
-try :: Parser a -> Parser a
-try p = Parser (\input -> case parse p input of
-                    Consumed (Error msg) -> Empty (Error msg)
-                    other          -> other)
 
 expr = do {string "let"; whiteSpace1; letExpr } <|> identifier
+
+-------------------
+-- Parser runner --
+-------------------
 
 -- Run a parser and prettyprint the result
 run :: Parser a -> String -> IO ()
