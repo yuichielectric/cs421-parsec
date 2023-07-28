@@ -9,6 +9,10 @@ newtype Parser a = Parser (State -> Consumed a)
 data State = State String Pos
     deriving (Eq, Show)
 
+-- Message has the following fields:
+--  * Position of the error
+--  * Unexpected input
+--  * List of expected productions
 data Message = Message Pos String [String]
     deriving (Eq, Show)
 
@@ -150,3 +154,11 @@ p <?> exp = Parser(
             other               -> other)
 
 expect (Message pos inp msg) exp = Message pos inp (msg ++ ["expecting " ++ exp])
+
+getMessage :: Parser a -> State -> Message
+getMessage p input =
+    case parse p input of
+        Empty (Ok x state msg) -> msg
+        Empty (Error msg) -> msg
+        Consumed (Ok x state msg) -> msg
+        Consumed (Error msg)  -> msg
