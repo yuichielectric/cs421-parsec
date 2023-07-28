@@ -137,7 +137,7 @@ char c = sat (c ==) <?> (show c)
 
 string :: String -> Parser ()
 string "" = return ()
-string (c:cs) = do {char c; string cs}
+string (c:cs) = do {head <- char c; string cs}
 
 letter :: Parser Char
 letter = sat isAlpha <?> "letter"
@@ -153,6 +153,9 @@ whiteSpace1 = do {many1 (char ' '); return ()}
 
 integer :: Parser String
 integer = many1 digit <?> "integer"
+
+string_literal :: Parser String
+string_literal = do {char '"'; value <- MyParsec.many letter; char '"'; return value} <?> "string_literal"
 
 ---------------------
 -- Complex parsers --

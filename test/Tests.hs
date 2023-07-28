@@ -11,6 +11,7 @@ allTests = [
     , (tests_whiteSpace, "whiteSpace tests")
     , (tests_whiteSpace1, "whiteSpace1 tests")
     , (tests_integer, "integer tests")
+    , (tests_string_literal, "string_literal tests")
     , (tests_many, "many tests")
     , (tests_many1, "many1 tests")
     , (tests_identifier, "identifier tests")
@@ -60,6 +61,11 @@ tests_integer = [
     , do_parse integer "123" == (Consumed (Ok "123" (State "" (Pos 1 3)) (Message (Pos 1 3) "" [])))
     , do_parse integer "123 abc" == (Consumed (Ok "123" (State " abc" (Pos 1 3)) (Message (Pos 1 3) "" [])))
     , do_parse integer "abc" == (Empty (Error (Message (Pos 1 1) "a" ["integer"])))]
+
+tests_string_literal = [
+    do_parse string_literal "\"\"" == (Consumed (Ok "" (State "" (Pos 1 2)) (Message (Pos 1 2) "" [])))
+    , do_parse string_literal "\"hello\"" == (Consumed (Ok "hello" (State "" (Pos 1 7)) (Message (Pos 1 7) "" [])))
+    , do_parse string_literal "123" == (Empty (Error (Message (Pos 1 1) "1" ["string_literal"])))]
 
 tests_many = [
     do_parse (do MyParsec.many (char 'a')) "a" == (Consumed (Ok "a" (State "" (Pos 1 1)) (Message (Pos 1 1) "" [])))
