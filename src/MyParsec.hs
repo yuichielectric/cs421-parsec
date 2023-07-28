@@ -151,12 +151,18 @@ whiteSpace = do {MyParsec.many (char ' '); return ()}
 whiteSpace1 :: Parser ()
 whiteSpace1 = do {many1 (char ' '); return ()}
 
-letExpr :: Parser String
-letExpr = do {identifier; whiteSpace; char '='; whiteSpace; expr}
+integer :: Parser String
+integer = many1 digit <?> "integer"
+
+---------------------
+-- Complex parsers --
+---------------------
 
 identifier :: Parser String
 identifier = many1 (letter <|> digit <|> char '_') <?> "identifier"
 
+letExpr :: Parser String
+letExpr = do {identifier; whiteSpace; char '='; whiteSpace; expr}
 
 expr = do {string "let"; whiteSpace1; letExpr } <|> identifier
 
@@ -186,7 +192,3 @@ showError pos inp exp = do
     putStrLn $ "Parse error at " ++ show pos
     putStrLn $ "unexpected \"" ++ inp ++ "\""
     putStrLn $ "expecting " ++ (intercalate ", " exp)
-
-test = do
-    (digit <|> return '0')
-    letter

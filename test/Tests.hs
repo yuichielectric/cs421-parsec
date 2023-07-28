@@ -10,8 +10,11 @@ allTests = [
     , (tests_digit, "digit tests")
     , (tests_whiteSpace, "whiteSpace tests")
     , (tests_whiteSpace1, "whiteSpace1 tests")
+    , (tests_integer, "integer tests")
     , (tests_many, "many tests")
     , (tests_many1, "many1 tests")
+    , (tests_identifier, "identifier tests")
+    , (tests_letExpr, "letExpr tests")
     ]
 
 
@@ -52,6 +55,12 @@ tests_whiteSpace1 = [
     , do_parse whiteSpace1 "a" == (Empty (Error (Message (Pos 1 1) "a" ["' '"])))
     , do_parse whiteSpace1 "" == (Empty (Error (Message (Pos 1 0) "end of input" ["' '"])))]
 
+tests_integer = [
+    do_parse integer "1" == (Consumed (Ok "1" (State "" (Pos 1 1)) (Message (Pos 1 1) "" [])))
+    , do_parse integer "123" == (Consumed (Ok "123" (State "" (Pos 1 3)) (Message (Pos 1 3) "" [])))
+    , do_parse integer "123 abc" == (Consumed (Ok "123" (State " abc" (Pos 1 3)) (Message (Pos 1 3) "" [])))
+    , do_parse integer "abc" == (Empty (Error (Message (Pos 1 1) "a" ["integer"])))]
+
 tests_many = [
     do_parse (do MyParsec.many (char 'a')) "a" == (Consumed (Ok "a" (State "" (Pos 1 1)) (Message (Pos 1 1) "" [])))
     , do_parse (do MyParsec.many (char 'a')) "aaa" == (Consumed (Ok "aaa" (State "" (Pos 1 3)) (Message (Pos 1 3) "" [])))
@@ -65,3 +74,12 @@ tests_many1 = [
     , do_parse (do many1 (char 'a')) "aab" == (Consumed (Ok "aa" (State "b" (Pos 1 2)) (Message (Pos 1 2) "" [])))
     , do_parse (do many1 (char 'a')) "def" == (Empty (Error (Message (Pos 1 1) "d" ["'a'"])))
     , do_parse (do many1 (char 'a')) "" == (Empty (Error (Message (Pos 1 0) "end of input" ["'a'"])))]
+
+tests_identifier = [
+    do_parse identifier "CamelCase" == (Consumed (Ok "CamelCase" (State "" (Pos 1 9)) (Message (Pos 1 9) "" [])))
+    , do_parse identifier "snake_case" == (Consumed (Ok "snake_case" (State "" (Pos 1 10)) (Message (Pos 1 10) "" [])))
+    , do_parse identifier "CamelCase snake_case" == (Consumed (Ok "CamelCase" (State " snake_case" (Pos 1 9)) (Message (Pos 1 9) "" [])))
+    , do_parse identifier "" == (Empty (Error (Message (Pos 1 0) "end of input" ["identifier"])))
+    , do_parse identifier "***" == (Empty (Error (Message (Pos 1 1) "*" ["identifier"])))]
+
+tests_letExpr = []
