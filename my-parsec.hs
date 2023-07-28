@@ -1,6 +1,7 @@
 module Parsing where
 
 import Data.Char
+import Data.List (intercalate)
 import Control.Monad
 import Control.Applicative (Alternative(..))
 
@@ -26,7 +27,7 @@ data Pos = Pos {line :: Int, column :: Int}
     deriving (Eq)
 
 instance Show Pos where
-    show (Pos l c) = "line " ++ show l ++ ", column " ++ show c
+    show (Pos l c) = "(line " ++ show l ++ ", column " ++ show c ++ ")"
 
 instance Functor Parser where
     fmap = liftM
@@ -95,7 +96,17 @@ sat test = Parser (\(State input pos) ->
                 newState = State cs newPos
             in if test c
                 then seq newPos (Consumed (Ok c newState (Message pos [] [])))
-                else Empty (Error (Message newPos [] ["unexpected " ++ [c]])))
+                else Empty (Error (Message newPos [c] [])))
+
+(<?>) :: Parser a -> String -> Parser a
+p <?> exp = Parser(
+    \state ->
+        case (parse p state) of
+            Empty (Error msg)   -> Empty (Error (expect msg exp))
+            Empty (Ok x st msg) -> Empty (Ok x st (expect msg exp))
+            other               -> other)
+
+expect (Message pos inp _) exp = Message pos inp ([exp])
 
 nextPos :: Char -> Pos -> Pos
 nextPos '\n' (Pos l _) = Pos (l + 1) 0
@@ -128,7 +139,7 @@ whiteSpace1 = do {many1 (char ' '); return ()}
 letExpr :: Parser String
 letExpr = do {identifier; whiteSpace; char '='; whiteSpace; expr}
 
-identifier = many1 (letter <|> digit <|> char '_')
+identifier = many1 (letter <|> digit <|> char '_') <?> "identifier"
 
 try :: Parser a -> Parser a
 try p = Parser (\input -> case parse p input of
@@ -137,20 +148,29 @@ try p = Parser (\input -> case parse p input of
 
 expr = do {string "let"; whiteSpace1; letExpr } <|> identifier
 
-(<?>) :: Parser a -> String -> Parser a
-p <?> exp = Parser(
-    \state ->
-        case (parse p state) of
-            Empty (Error msg)   -> Empty (Error (expect msg exp))
-            Empty (Ok x st msg) -> Empty (Ok x st (expect msg exp))
-            other               -> other)
 
-expect (Message pos inp msg) exp = Message pos inp (msg ++ ["expecting " ++ exp])
+-- p: Parser aとinput: Stringを受け取り、parse p (State input (Pos 0 0))を
+-- 実行する。
+-- そして、結果が
+--  * Consumed (Ok result state message)、もしくはEmpty (Ok result state message)の場合は、
+--    "Successfully parsed"と表示し、その次の行でstateの最初のフィールドを表示する。
+--  * Consumed (Error (Message pos inp exp))、もしくはEmpty (Error (Message pos inp exp))の場合は、
+--    "Parse error"と表示し、その次の行でposを表示、その次の行でinpを表示、その次の行でexpを改行文字で連結して表示する。
+run :: Parser a -> String -> IO ()
+run p input =
+    case parse p (State input (Pos 0 0)) of
+        Consumed (Ok result state message) -> showSuccess state
+        Empty (Ok result state message)    -> showSuccess state
+        Consumed (Error (Message pos inp exp)) -> showError pos inp exp
+        Empty (Error (Message pos inp exp))    -> showError pos inp exp
 
-getMessage :: Parser a -> State -> Message
-getMessage p input =
-    case parse p input of
-        Empty (Ok x state msg) -> msg
-        Empty (Error msg) -> msg
-        Consumed (Ok x state msg) -> msg
-        Consumed (Error msg)  -> msg
+showSuccess :: State -> IO ()
+showSuccess (State rest pos) = do
+    putStrLn $ "Successfully parsed to " ++ show pos
+    putStrLn $ "Rest of input: \"" ++ rest ++ "\""
+
+showError :: Pos -> String -> [String] -> IO ()
+showError pos inp exp = do
+    putStrLn $ "Parse error at " ++ show pos
+    putStrLn $ "unexpected \"" ++ inp ++ "\""
+    putStrLn $ "expecting " ++ (intercalate "," exp)
