@@ -101,23 +101,12 @@ sat test = Parser (\(State input pos) ->
                 then seq newPos (Consumed (Ok c newState (Message pos [] [])))
                 else Empty (Error (Message newPos [] ["unexpected " ++ [c]])))
 
--- sat :: (Char -> Bool) -> Parser Char
--- sat test = Parser (\(State input pos) ->
---     case input of
---         (c:cs) | test c
---             -> let newPos = nextPos c pos
---                    newState = State cs newPos
---                 in seq newPos
---                     (Consumed (Ok c newState (Message pos [] [])))
---         (c:cs) -> Empty (Error (Message pos [] ["unexpected " ++ [c]]))
---         []     -> Empty (Error (Message pos "end of input" [])))
-
 nextPos :: Char -> Pos -> Pos
 nextPos '\n' (Pos l _) = Pos (l + 1) 0
 nextPos _ (Pos l c) = Pos l (c + 1)
 
 char :: Char -> Parser Char
-char c = sat (c ==)
+char c = sat (c ==) <?> (show c)
 
 string :: String -> Parser ()
 string "" = return ()
@@ -130,10 +119,10 @@ many1 :: Parser a -> Parser [a]
 many1 p = do {a <- p; as <- (many1 p <|> return []); return (a:as)}
 
 letter :: Parser Char
-letter = sat isAlpha
+letter = sat isAlpha <?> "letter"
 
 digit :: Parser Char
-digit = sat isDigit
+digit = (sat isDigit) <?> "digit"
 
 whiteSpace :: Parser ()
 whiteSpace = do {Parsing.many (char ' '); return ()}
@@ -145,7 +134,6 @@ letExpr = do {identifier; whiteSpace; char '='; whiteSpace; expr}
 
 identifier = many1 (letter <|> digit <|> char '_')
 
-
 try :: Parser a -> Parser a
 try p = Parser (\input -> case parse p input of
                     Consumed (Error msg) -> Empty (Error msg)
@@ -153,6 +141,12 @@ try p = Parser (\input -> case parse p input of
 
 expr = do {string "let"; whiteSpace1; letExpr } <|> identifier
 
+(<?>) :: Parser a -> String -> Parser a
+p <?> exp = Parser(
+    \state ->
+        case (parse p state) of
+            Empty (Error msg)   -> Empty (Error (expect msg exp))
+            Empty (Ok x st msg) -> Empty (Ok x st (expect msg exp))
+            other               -> other)
 
-test = sat ('l' ==) >>= \_ ->
-    sat ('n' ==)
+expect (Message pos inp msg) exp = Message pos inp (msg ++ ["expecting " ++ exp])
