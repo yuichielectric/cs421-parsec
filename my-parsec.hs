@@ -86,14 +86,6 @@ parse (Parser p) = p
 pos :: State -> Pos
 pos (State _ pos) = pos
 
--- item :: Parser Char
--- item = Parser (\cs -> case cs of
---                         State "" pos     -> Empty (Error (Message pos [] ["end of input"]))
---                         State (c:cs) pos -> Consumed (Ok c cs))
-
--- sat :: (Char -> Bool) -> Parser Char
--- sat p = do {c <- item; if p c then return c else mzero}
-
 sat :: (Char -> Bool) -> Parser Char
 sat test = Parser (\(State input pos) ->
     case input of
