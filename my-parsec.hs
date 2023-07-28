@@ -5,8 +5,13 @@ import Data.List (intercalate)
 import Control.Monad
 import Control.Applicative (Alternative(..))
 
+
+
 newtype Parser a = Parser (State -> Consumed a)
 
+-- State has the following fields:
+--  * Rest of the input string
+--  * Current position
 data State = State String Pos
     deriving (Eq, Show)
 
@@ -80,7 +85,6 @@ mergeOk x inp msg1 msg2 = Empty (Ok x inp (merge msg1 msg2))
 mergeError msg1 msg2 = Empty (Error (merge msg1 msg2))
 merge (Message pos inp exp1) (Message newPos newInp exp2) = Message newPos newInp (exp1 ++ exp2)
 
--- Apply parser
 parse :: Parser a -> State -> Consumed a
 parse (Parser p) = p
 
@@ -98,6 +102,7 @@ sat test = Parser (\(State input pos) ->
                 then seq newPos (Consumed (Ok c newState (Message pos [] [])))
                 else Empty (Error (Message newPos [c] [])))
 
+-- Specify the expected production
 (<?>) :: Parser a -> String -> Parser a
 p <?> exp = Parser(
     \state ->
@@ -111,6 +116,10 @@ expect (Message pos inp _) exp = Message pos inp ([exp])
 nextPos :: Char -> Pos -> Pos
 nextPos '\n' (Pos l _) = Pos (l + 1) 0
 nextPos _ (Pos l c) = Pos l (c + 1)
+
+-----------------------
+-- Primitive parsers --
+-----------------------
 
 char :: Char -> Parser Char
 char c = sat (c ==) <?> (show c)
@@ -134,11 +143,13 @@ digit = (sat isDigit) <?> "digit"
 whiteSpace :: Parser ()
 whiteSpace = do {Parsing.many (char ' '); return ()}
 
+whiteSpace1 :: Parser ()
 whiteSpace1 = do {many1 (char ' '); return ()}
 
 letExpr :: Parser String
 letExpr = do {identifier; whiteSpace; char '='; whiteSpace; expr}
 
+identifier :: Parser String
 identifier = many1 (letter <|> digit <|> char '_') <?> "identifier"
 
 try :: Parser a -> Parser a
@@ -148,14 +159,7 @@ try p = Parser (\input -> case parse p input of
 
 expr = do {string "let"; whiteSpace1; letExpr } <|> identifier
 
-
--- p: Parser aとinput: Stringを受け取り、parse p (State input (Pos 0 0))を
--- 実行する。
--- そして、結果が
---  * Consumed (Ok result state message)、もしくはEmpty (Ok result state message)の場合は、
---    "Successfully parsed"と表示し、その次の行でstateの最初のフィールドを表示する。
---  * Consumed (Error (Message pos inp exp))、もしくはEmpty (Error (Message pos inp exp))の場合は、
---    "Parse error"と表示し、その次の行でposを表示、その次の行でinpを表示、その次の行でexpを改行文字で連結して表示する。
+-- Run a parser and prettyprint the result
 run :: Parser a -> String -> IO ()
 run p input =
     case parse p (State input (Pos 0 0)) of
