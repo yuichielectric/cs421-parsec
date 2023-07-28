@@ -162,7 +162,7 @@ expr = do {string "let"; whiteSpace1; letExpr } <|> identifier
 -- Run a parser and prettyprint the result
 run :: Parser a -> String -> IO ()
 run p input =
-    case parse p (State input (Pos 0 0)) of
+    case parse p (State input (Pos 1 0)) of
         Consumed (Ok result state message) -> showSuccess state
         Empty (Ok result state message)    -> showSuccess state
         Consumed (Error (Message pos inp exp)) -> showError pos inp exp
@@ -177,4 +177,8 @@ showError :: Pos -> String -> [String] -> IO ()
 showError pos inp exp = do
     putStrLn $ "Parse error at " ++ show pos
     putStrLn $ "unexpected \"" ++ inp ++ "\""
-    putStrLn $ "expecting " ++ (intercalate "," exp)
+    putStrLn $ "expecting " ++ (intercalate ", " exp)
+
+test = do
+    (digit <|> return '0')
+    letter
