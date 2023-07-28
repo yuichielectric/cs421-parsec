@@ -40,6 +40,14 @@ instance Applicative Parser where
                         Empty (Ok a state (Message (pos state) [] [])))
     (<*>) = ap
 
+instance Alternative Parser where
+    empty = mzero
+    (<|>) = mplus
+
+-----------------------
+-- Basic combinators --
+-----------------------
+
 instance Monad Parser where
     p >>= f = Parser (\state -> case parse p state of
                             Empty reply1
@@ -58,19 +66,15 @@ instance Monad Parser where
                                         Error msg -> Error msg
                                         ))
 
-instance Alternative Parser where
-    empty = mzero
-    (<|>) = mplus
-
 instance MonadPlus Parser where
     mzero = Parser (\cs -> Empty (Error (Message (Pos 0 0) [] [])))
     p `mplus` q =
         Parser (\state ->
             case parse p state of
                 Empty (Error msg1) -> case parse q state of
-                                        Empty (Error msg2) -> mergeError msg1 msg2
-                                        Empty (Ok x inp msg2) -> mergeOk x inp msg1 msg2
-                                        consumed -> consumed
+                                Empty (Error msg2) -> mergeError msg1 msg2
+                                Empty (Ok x inp msg2) -> mergeOk x inp msg1 msg2
+                                consumed -> consumed
                 Empty (Ok x inp msg1) -> case parse q state of
                                 Empty (Error msg2)  -> mergeOk x inp msg1 msg2
                                 Empty (Ok _ _ msg2) -> mergeOk x inp msg1 msg2
@@ -112,8 +116,6 @@ expect (Message pos inp _) exp = Message pos inp ([exp])
 nextPos :: Char -> Pos -> Pos
 nextPos '\n' (Pos l _) = Pos (l + 1) 0
 nextPos _ (Pos l c) = Pos l (c + 1)
-
-
 
 many :: Parser a -> Parser [a]
 many p = many1 p <|> return []
@@ -157,6 +159,9 @@ identifier = many1 (letter <|> digit <|> char '_') <?> "identifier"
 
 
 expr = do {string "let"; whiteSpace1; letExpr } <|> identifier
+
+expr2 = try (do { string "let"; whiteSpace1; letExpr})
+        <|> identifier
 
 -------------------
 -- Parser runner --
